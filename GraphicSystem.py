@@ -1,16 +1,15 @@
 import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import time
+from matplotlib.patches import Polygon
 
 class GraphApp:
     def __init__(self, master):
         self.master = master
+        master.geometry("1280x720")
         master.title("Graph Application")
 
-        self.figure, self.ax = Figure(), None
-        self.canvas = FigureCanvasTkAgg(self.figure, master=master)
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        self.configure_layout()
 
         self.points = [(1, 1), (2, 2), (3, 1)]  # Exemplo de pontos
 
@@ -24,11 +23,37 @@ class GraphApp:
         self.canvas.mpl_connect("button_release_event", self.on_mouse_release)
         self.canvas.mpl_connect("scroll_event", self.on_mouse_scroll)
 
+    def configure_layout(self):
+         # Configuração do layout
+        self.master.grid_columnconfigure(0, weight=3)
+        self.master.grid_columnconfigure(1, weight=1)  # A segunda coluna não redimensiona
+        self.master.grid_rowconfigure(0, weight=1)
+
+        # Configuração do gráfico
+        self.figure, self.ax = Figure(), None
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.master)
+        self.canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
+
+        # Configuração dos botões
+        self.button_frame = tk.Frame(self.master, background='#F0F2F3')
+        self.button_frame.grid(row=0, column=1, sticky='nsew')
+
+        self.button1 = tk.Button(self.button_frame, text="Botão 1", command=self.on_button1_click)
+        self.button1.pack(pady=10)
+
+        self.button2 = tk.Button(self.button_frame, text="Botão 2", command=self.on_button2_click)
+        self.button2.pack(pady=10)
+
+
+
     def plot_points(self):
         if self.ax:
             self.ax.clear()
 
         self.ax = self.figure.add_subplot(111)
+
+        polygon = Polygon([(1.5, 0.5), (2.5, 0.5), (2.5, 1.5), (1.5, 1.5)], closed=True, edgecolor='blue', facecolor='cyan', alpha=0.5)
+        self.ax.add_patch(polygon)
 
         x, y = zip(*self.points)
         self.ax.scatter(x, y)
@@ -81,6 +106,15 @@ class GraphApp:
                 self.ax.set_ylim(self.ax.get_ylim()[0], self.ax.get_ylim()[1] / 1.1)
 
             self.canvas.draw()
+
+    def on_button1_click(self):
+        file_path = tk.filedialog.askopenfilename(title="Selecione um arquivo")
+        if file_path:
+            print("Arquivo selecionado:", file_path)
+
+    def on_button2_click(self):
+        # Função a ser executada quando o Botão 2 é clicado
+        print("Botão 2 clicado!")
 
 if __name__ == "__main__":
     root = tk.Tk()
