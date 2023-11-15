@@ -2,6 +2,7 @@ import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Polygon
+import tkinter.colorchooser as colorchooser
 import Object
 
 ListObjects = []
@@ -17,6 +18,8 @@ class windowMaster:
 
         self.plot_points()
 
+        self.listOfVertexNewPolygon = []
+        self.createMode = False
         self.mouse_is_pressed = False
         self.last_press = None
 
@@ -24,6 +27,7 @@ class windowMaster:
         self.canvas.mpl_connect("motion_notify_event", self.on_mouse_drag)
         self.canvas.mpl_connect("button_release_event", self.on_mouse_release)
         self.canvas.mpl_connect("scroll_event", self.on_mouse_scroll)
+        self.canvas.mpl_connect("key_press_event", self.on_key_press)
 
     def configure_layout(self):
          # Configuração do layout
@@ -77,11 +81,26 @@ class windowMaster:
 
         self.canvas.draw()
 
+    def round_to_nearest_05(self, number):
+        rounded_number = round(number * 10) / 10  # Arredonda para o valor mais próximo com uma casa decimal
+        return rounded_number
+
     def on_mouse_press(self, event):
         # Move o plano cartesiano com o mouse
         if event.inaxes:
             self.last_press = (event.xdata, event.ydata)
         self.mouse_is_pressed = True
+
+        if self.createMode:
+            x, y = (self.round_to_nearest_05(event.xdata), self.round_to_nearest_05(event.ydata))
+            self.listOfVertexNewPolygon.append((x, y))
+            self.ax.scatter(x, y, color='blue')
+            self.canvas.draw()
+    
+    def on_key_press(self, event):
+        if event.key == 'enter' and self.createMode:
+            self.createMode = False
+            windowCreateObject(self)
 
     def on_mouse_release(self, event):
         self.mouse_is_pressed = False
@@ -124,7 +143,8 @@ class windowMaster:
             print("Arquivo selecionado:", file_path)
 
     def on_buttoncreateobject_click(self):
-        windowCreateObject(self)    
+        #windowCreateObject(self)
+        self.createMode = True    
 
     def update_listbox(self, info):
         self.displayFile.insert(tk.END, info) 
@@ -152,7 +172,6 @@ class windowMaster:
         # Exibe o menu de contexto
         menu.post(x_root, y_root)
 
-
 # janela de criacao de objetos            
 class windowCreateObject:
     def __init__(self, masterWindowInstance):
@@ -160,38 +179,36 @@ class windowCreateObject:
         self.masterWindowInstance = masterWindowInstance
 
         self.windowCreate = tk.Toplevel()
-        self.windowCreate.title('Criação de objetos')    
+        self.windowCreate.title('Criação de objetos')
+
+        self.color = 'cyan'    
 
         self.nameLabel = tk.Label(self.windowCreate,text="Nome")
         self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
         self.name = tk.Entry(self.windowCreate)
         self.name.grid(row=0, column=1, padx=10, pady=10)
 
-        self.pointsLabel = tk.Label(self.windowCreate,text="Lista de pontos")
-        self.pointsLabel.grid(row=1, column=0, padx=10, pady=0)
-        self.points = tk.Entry(self.windowCreate)
-        self.points.grid(row=1, column=1, padx=10, pady=0)      
-
-        self.pointsLabel = tk.Label(self.windowCreate,text="(x1,y1),(x2,y2),(x3,y3) ...")
-        self.pointsLabel.grid(row=2, column=1, padx=10, pady=0)
-
         self.buttonCreate = tk.Button(self.windowCreate, text="Criar", command=self.createObject)
+        self.buttonCreate.grid(row=4, column=0, padx=10, pady=10)
+
+        self.buttonColor = tk.Button(self.windowCreate, text="Cor", command=self.getColor)
         self.buttonCreate.grid(row=3, column=0, padx=10, pady=10)
 
-        self.buttonCancel = tk.Button(self.windowCreate, text="Cancelar", command=self.windowCreate.destroy)
-        self.buttonCancel.grid(row=3, column=1, padx=10, pady=10)
+    def getColor(self):
+        color = colorchooser.askcolor(title="Escolha uma cor")[1]
+        if color:
+            self.color = color
 
     def createObject(self):
         name = self.name.get()
-        points = self.points.get()
         
-        points_str = points.split('),(')              
-        VectorPoints = [tuple(map(float, point.strip('()').split(','))) for point in points_str]
-
-        new_object = Object.Object(name, VectorPoints)
+        new_object = Object.Object(name, self.masterWindowInstance.listOfVertexNewPolygon)
         ListObjects.append(new_object)
 
         self.masterWindowInstance.update_listbox(new_object.name)
+
+        self.masterWindowInstance.listOfVertexNewPolygon = []
+
         self.masterWindowInstance.update_canva()
 
         self.windowCreate.destroy()
