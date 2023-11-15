@@ -2,8 +2,11 @@ import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Polygon
+from Object import Object
 
-class GraphApp:
+ListObjects = []
+
+class windowMaster:
     def __init__(self, master):
         self.master = master
         master.geometry("1280x720")
@@ -38,13 +41,14 @@ class GraphApp:
         self.button_frame = tk.Frame(self.master, background='#F0F2F3')
         self.button_frame.grid(row=0, column=1, sticky='nsew')
 
-        self.button1 = tk.Button(self.button_frame, text="Botão 1", command=self.on_button1_click)
+        self.button1 = tk.Button(self.button_frame, text="Abrir arquivo (.obj)", command=self.on_openfile_click)
         self.button1.pack(pady=10)
 
-        self.button2 = tk.Button(self.button_frame, text="Botão 2", command=self.on_button2_click)
-        self.button2.pack(pady=10)
+        self.buttonCreateObject = tk.Button(self.button_frame, text="Criar Objeto", command=self.on_buttoncreateobject_click)
+        self.buttonCreateObject.pack(pady=10)
 
-
+        self.displayFile = tk.Listbox(self.button_frame)
+        self.displayFile.pack(pady=10, padx=30, expand=True, fill=tk.BOTH)        
 
     def plot_points(self):
         if self.ax:
@@ -62,7 +66,6 @@ class GraphApp:
 
         self.ax.axhline(0, color='black', lw=2)  # Linha horizontal no eixo x
         self.ax.axvline(0, color='black', lw=2)  # Linha vertical no eixo y
-
 
         self.canvas.draw()
 
@@ -98,7 +101,7 @@ class GraphApp:
     def on_mouse_scroll(self, event):
         # Dá zoom no plano cartesiano com o scroll do mouse
         if event.inaxes:
-            if event.step < 0:
+            if event.step < 0:  
                 self.ax.set_xlim(self.ax.get_xlim()[0], self.ax.get_xlim()[1] * 1.1)
                 self.ax.set_ylim(self.ax.get_ylim()[0], self.ax.get_ylim()[1] * 1.1)
             else:
@@ -107,16 +110,54 @@ class GraphApp:
 
             self.canvas.draw()
 
-    def on_button1_click(self):
+    def on_openfile_click(self):
         file_path = tk.filedialog.askopenfilename(title="Selecione um arquivo")
         if file_path:
             print("Arquivo selecionado:", file_path)
 
-    def on_button2_click(self):
-        # Função a ser executada quando o Botão 2 é clicado
-        print("Botão 2 clicado!")
+    def on_buttoncreateobject_click(self):
+        windowCreateObject(self)    
+
+    def update_listbox(self, info):
+        self.displayFile.insert(tk.END, info)    
+
+# janela de criacao de objetos            
+class windowCreateObject:
+    def __init__(self, masterWindowInstance):
+        # Função a ser executada quando o Botão de criação de objeto é clicado
+        self.masterWindowInstance = masterWindowInstance
+
+        self.windowCreate = tk.Toplevel()
+        self.windowCreate.title('Criação de objetos')    
+
+        self.nameLabel = tk.Label(self.windowCreate,text="Nome")
+        self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
+        self.name = tk.Entry(self.windowCreate)
+        self.name.grid(row=0, column=1, padx=10, pady=10)
+
+        self.pointsLabel = tk.Label(self.windowCreate,text="Lista de pontos")
+        self.pointsLabel.grid(row=1, column=0, padx=10, pady=10)
+        self.points = tk.Entry(self.windowCreate)
+        self.points.grid(row=1, column=1, padx=10, pady=10)      
+
+        self.buttonCreate = tk.Button(self.windowCreate, text="Criar", command=self.createObject)
+        self.buttonCreate.grid(row=2, column=0, padx=10, pady=10)
+
+        self.buttonCancel = tk.Button(self.windowCreate, text="Cancelar", command=self.windowCreate.destroy)
+        self.buttonCancel.grid(row=2, column=1, padx=10, pady=10)
+
+    def createObject(self):
+        name = self.name.get()
+        points = self.points.get()
+        
+        new_object = Object(name, points)
+        ListObjects.append(new_object)
+
+        self.masterWindowInstance.update_listbox(new_object.name)
+
+        self.windowCreate.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = GraphApp(root)
+    app = windowMaster(root)
     root.mainloop()
