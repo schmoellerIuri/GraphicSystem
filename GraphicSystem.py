@@ -2,10 +2,11 @@ import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Polygon
-from Object import Object
+import Object
 
 ListObjects = []
 
+# Janela Principal
 class windowMaster:
     def __init__(self, master):
         self.master = master
@@ -13,8 +14,6 @@ class windowMaster:
         master.title("Graph Application")
 
         self.configure_layout()
-
-        self.points = [(1, 1), (2, 2), (3, 1)]  # Exemplo de pontos
 
         self.plot_points()
 
@@ -37,37 +36,42 @@ class windowMaster:
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.master)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
 
-        # Configuração dos botões
-        self.button_frame = tk.Frame(self.master, background='#F0F2F3')
-        self.button_frame.grid(row=0, column=1, sticky='nsew')
+        # Container para layout direito
+        self.frame = tk.Frame(self.master, background='#F0F2F3')
+        self.frame.grid(row=0, column=1, sticky='nsew')
 
-        self.button1 = tk.Button(self.button_frame, text="Abrir arquivo (.obj)", command=self.on_openfile_click)
-        self.button1.pack(pady=10)
+         # Botões
+        self.buttonOpenFile = tk.Button(self.frame, text="Abrir arquivo (.obj)", command=self.on_openfile_click)
+        self.buttonOpenFile.pack(pady=10)
 
-        self.buttonCreateObject = tk.Button(self.button_frame, text="Criar Objeto", command=self.on_buttoncreateobject_click)
+        self.buttonCreateObject = tk.Button(self.frame, text="Criar Objeto", command=self.on_buttoncreateobject_click)
         self.buttonCreateObject.pack(pady=10)
 
-        self.displayFile = tk.Listbox(self.button_frame)
+        # Lista de objetos
+        self.displayFile = tk.Listbox(self.frame)
         self.displayFile.pack(pady=10, padx=30, expand=True, fill=tk.BOTH)        
 
-    def plot_points(self):
-        if self.ax:
-            self.ax.clear()
+        # Scroll ao lado da lista de objetos
+        scrollbar = tk.Scrollbar(self.displayFile, orient="vertical", command=self.displayFile.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.displayFile.config(yscrollcommand=scrollbar.set)
 
+    def plot_points(self):        
         self.ax = self.figure.add_subplot(111)
+        
+        for patch in self.ax.patches:
+            patch.remove()
 
-        polygon = Polygon([(1.5, 0.5), (2.5, 0.5), (2.5, 1.5), (1.5, 1.5)], closed=True, edgecolor='blue', facecolor='cyan', alpha=0.5)
-        self.ax.add_patch(polygon)
+        for obj in ListObjects:
+            self.ax.add_patch(obj.polygon)
 
-        x, y = zip(*self.points)
-        self.ax.scatter(x, y)
-
-        self.ax.grid(True, linestyle='-', alpha=0.5) 
-
+        # Configurações adicionais do subplot
+        self.ax.grid(True, linestyle='-', alpha=0.5)
         self.ax.axhline(0, color='black', lw=2)  # Linha horizontal no eixo x
         self.ax.axvline(0, color='black', lw=2)  # Linha vertical no eixo y
 
         self.canvas.draw()
+
 
     def on_mouse_press(self, event):
         # Move o plano cartesiano com o mouse
@@ -136,28 +140,34 @@ class windowCreateObject:
         self.name.grid(row=0, column=1, padx=10, pady=10)
 
         self.pointsLabel = tk.Label(self.windowCreate,text="Lista de pontos")
-        self.pointsLabel.grid(row=1, column=0, padx=10, pady=10)
+        self.pointsLabel.grid(row=1, column=0, padx=10, pady=0)
         self.points = tk.Entry(self.windowCreate)
-        self.points.grid(row=1, column=1, padx=10, pady=10)      
+        self.points.grid(row=1, column=1, padx=10, pady=0)      
+
+        self.pointsLabel = tk.Label(self.windowCreate,text="(x1,y1),(x2,y2),(x3,y3) ...")
+        self.pointsLabel.grid(row=2, column=1, padx=10, pady=0)
 
         self.buttonCreate = tk.Button(self.windowCreate, text="Criar", command=self.createObject)
-        self.buttonCreate.grid(row=2, column=0, padx=10, pady=10)
+        self.buttonCreate.grid(row=3, column=0, padx=10, pady=10)
 
         self.buttonCancel = tk.Button(self.windowCreate, text="Cancelar", command=self.windowCreate.destroy)
-        self.buttonCancel.grid(row=2, column=1, padx=10, pady=10)
+        self.buttonCancel.grid(row=3, column=1, padx=10, pady=10)
 
     def createObject(self):
         name = self.name.get()
         points = self.points.get()
         
-        new_object = Object(name, points)
+        points_str = points.split('),(')              
+        VectorPoints = [tuple(map(float, point.strip('()').split(','))) for point in points_str]
+
+        new_object = Object.Object(name, VectorPoints)
         ListObjects.append(new_object)
 
         self.masterWindowInstance.update_listbox(new_object.name)
+        self.masterWindowInstance.plot_points()
 
         self.windowCreate.destroy()
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = windowMaster(root)
-    root.mainloop()
+root = tk.Tk()
+app = windowMaster(root)
+root.mainloop()
