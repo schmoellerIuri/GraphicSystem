@@ -57,21 +57,25 @@ class windowMaster:
         self.displayFile.config(yscrollcommand=scrollbar.set)
 
     def plot_points(self):        
+        if self.ax:
+            self.ax.clear()
+
         self.ax = self.figure.add_subplot(111)
-        
-        for patch in self.ax.patches:
-            patch.remove()
 
-        for obj in ListObjects:
-            self.ax.add_patch(obj.polygon)
+        self.ax.grid(True, linestyle='-', alpha=0.5) 
 
-        # Configurações adicionais do subplot
-        self.ax.grid(True, linestyle='-', alpha=0.5)
         self.ax.axhline(0, color='black', lw=2)  # Linha horizontal no eixo x
         self.ax.axvline(0, color='black', lw=2)  # Linha vertical no eixo y
 
         self.canvas.draw()
 
+    def update_canva(self):
+
+        obj = ListObjects[-1]
+        polygon = obj.polygon
+        self.ax.add_patch(polygon)
+
+        self.canvas.draw()
 
     def on_mouse_press(self, event):
         # Move o plano cartesiano com o mouse
@@ -123,7 +127,31 @@ class windowMaster:
         windowCreateObject(self)    
 
     def update_listbox(self, info):
-        self.displayFile.insert(tk.END, info)    
+        self.displayFile.insert(tk.END, info) 
+        self.displayFile.bind("<Button-3>", self.on_listbox_right_click)
+
+    def menu_command(self, index, option):
+        print(f"Item {index} selecionado. Opção escolhida: {option}")   
+
+    def on_listbox_right_click(self, event):
+        # Pega o índice do item clicado
+        item_index = self.displayFile.nearest(event.y)
+
+        # Obtém as coordenadas do clique
+        x, y, _, _ = self.displayFile.bbox(item_index)
+
+        # Converte as coordenadas para a posição da janela principal
+        x_root = self.displayFile.winfo_rootx() + x
+        y_root = self.displayFile.winfo_rooty() + y
+
+        # Cria o menu de contexto
+        menu = tk.Menu(root, tearoff=0)
+        menu.add_command(label="Opção 1", command=lambda: self.menu_command(item_index, "Opção 1"))
+        menu.add_command(label="Opção 2", command=lambda: self.menu_command(item_index, "Opção 2"))
+
+        # Exibe o menu de contexto
+        menu.post(x_root, y_root)
+
 
 # janela de criacao de objetos            
 class windowCreateObject:
@@ -164,7 +192,7 @@ class windowCreateObject:
         ListObjects.append(new_object)
 
         self.masterWindowInstance.update_listbox(new_object.name)
-        self.masterWindowInstance.plot_points()
+        self.masterWindowInstance.update_canva()
 
         self.windowCreate.destroy()
 
