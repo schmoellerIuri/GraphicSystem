@@ -1,10 +1,9 @@
 import tkinter as tk
+from tkinter import ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.patches import Polygon
 import tkinter.colorchooser as colorchooser
 import Object
-from tkinter import messagebox
 
 ListObjects = []
 
@@ -191,14 +190,21 @@ class windowMaster:
         y_root = self.displayFile.winfo_rooty() + y
 
         # Cria o menu de contexto
-        menu = tk.Menu(root, tearoff=0)
-        menu.add_command(label="Deletar", command=lambda: self.delete(item_index))
-        #menu.add_command(label="Opção 2", command=lambda: self.menu_command(item_index, "Opção 2"))
+        self.menu = tk.Menu(self.master, tearoff=0)
+        self.menu.add_command(label="Deletar", command=lambda: self.delete(item_index))
+        self.menu.add_command(label="Aplicar Transformação", command=lambda: windowTransformationsObject(self))
 
         # Exibe o menu de contexto
-        menu.post(x_root, y_root)
+        self.menu.post(x_root, y_root)
 
-# janela de criacao de objetos            
+        self.master.bind("<Button-1>", self.close_menu_on_mouse_button)
+    
+    def close_menu_on_mouse_button(self, event):
+        # Verifica se o menu de contexto existe antes de tentar destruí-lo
+        if hasattr(self, 'menu') and self.menu:
+            self.menu.destroy()
+
+# Janela de criacao de objetos            
 class windowCreateObject:
     def __init__(self, masterWindowInstance):
         # Função a ser executada quando o Botão de criação de objeto é clicado
@@ -211,8 +217,8 @@ class windowCreateObject:
 
         self.nameLabel = tk.Label(self.windowCreate,text="Nome")
         self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
-        self.name = tk.Entry(self.windowCreate)
-        self.name.grid(row=0, column=1, padx=10, pady=10)
+        self.entryName = tk.Entry(self.windowCreate)
+        self.entryName.grid(row=0, column=1, padx=10, pady=10)
 
         self.buttonColor = tk.Button(self.windowCreate, text="Escolher Cor", command=self.getColor)
         self.buttonColor.grid(row=1, column=0, padx=10, pady=10)
@@ -226,14 +232,14 @@ class windowCreateObject:
             self.color = color
 
     def createObject(self):
-        name = self.name.get()
+        name = self.entryName.get()
 
         if name == "":
-            messagebox.showerror("Erro", "O nome do objeto não pode ser vazio.", parent=self.windowCreate)
+            tk.messagebox.showerror("Erro", "O nome do objeto não pode ser vazio.", parent=self.windowCreate)
             return
 
         if len(self.masterWindowInstance.listOfNewPolygonVertexes) <= 1:
-            messagebox.showerror("Erro", "O objeto não pode ser vazio.", parent=self.windowCreate)
+            tk.messagebox.showerror("Erro", "O objeto não pode ser vazio.", parent=self.windowCreate)
             return
         
         new_object = Object.Object(name, self.masterWindowInstance.listOfNewPolygonVertexes, self.masterWindowInstance.listOfNewPolygonPoints, self.color)
@@ -253,7 +259,90 @@ class windowCreateObject:
 
         self.windowCreate.destroy()
 
+# Janela de transformações de objetos
+class windowTransformationsObject:
+    def __init__(self, masterWindowInstance):
+        self.options = ["Translação", "Escala", "Rotação", "Cisalhamento", "Reflexão"]
 
-root = tk.Tk()
-app = windowMaster(root)
-root.mainloop()
+        self.masterWindowInstance = masterWindowInstance
+        self.windowCreate = tk.Toplevel()
+        self.windowCreate.title('Menu de Transformação')  
+
+        self.nameLabel = tk.Label(self.windowCreate, text="Transformação")
+        self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
+
+        self.selection = ttk.Combobox(self.windowCreate, values=self.options)
+        self.selection.grid(row=0, column=1, padx=10, pady=10)
+        self.selection.bind("<<ComboboxSelected>>", self.updateOptions)
+
+        self.options_menu_frame = tk.Frame(self.windowCreate)
+        self.options_menu_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+
+        self.updateOptions(None)
+
+        self.buttonCancel = tk.Button(self.windowCreate, text="Cancelar", command=self.windowCreate.destroy)
+        self.buttonCancel.grid(row=2, column=0, padx=10, pady=10)
+
+        self.buttonApply = tk.Button(self.windowCreate, text="Aplicar", command=self.updateObject)
+        self.buttonApply.grid(row=2, column=3, padx=10, pady=10)
+
+    def optionsMenu(self, optionSelected):
+        if optionSelected == "Translação":
+            labelX = tk.Label(self.options_menu_frame, text="Deslocamento X:")
+            labelX.grid(row=0, column=0, padx=5, pady=5)
+            entryX = tk.Entry(self.options_menu_frame)
+            entryX.grid(row=0, column=1, padx=5, pady=5)
+            labelY = tk.Label(self.options_menu_frame, text="Deslocamento Y:")
+            labelY.grid(row=1, column=0, padx=5, pady=5)
+            entryY = tk.Entry(self.options_menu_frame)
+            entryY.grid(row=1, column=1, padx=5, pady=5)
+
+        elif optionSelected == "Escala":
+            labelEscalaX = tk.Label(self.options_menu_frame, text="Fator de Escala em X:")
+            labelEscalaX.grid(row=0, column=0, padx=5, pady=5)
+            entryEscalaX = tk.Entry(self.options_menu_frame)
+            entryEscalaX.grid(row=0, column=1, padx=5, pady=5)
+            labelEscalaY = tk.Label(self.options_menu_frame, text="Fator de Escala em Y:")
+            labelEscalaY.grid(row=1, column=0, padx=5, pady=5)
+            entryEscalaY = tk.Entry(self.options_menu_frame)
+            entryEscalaY.grid(row=1, column=1, padx=5, pady=5)
+
+        elif optionSelected == "Rotação":
+            label_angulo = tk.Label(self.options_menu_frame, text="Ângulo de Rotação (°):")
+            label_angulo.grid(row=0, column=0, padx=5, pady=5)
+            entry_angulo = tk.Entry(self.options_menu_frame)
+            entry_angulo.grid(row=0, column=1, padx=5, pady=5)
+
+        elif optionSelected == "Cisalhamento":
+            labelCisalhamentoX = tk.Label(self.options_menu_frame, text="Fator de Cissalhamento em X:")
+            labelCisalhamentoX.grid(row=0, column=0, padx=5, pady=5)
+            entryCisalhamentoX = tk.Entry(self.options_menu_frame)
+            entryCisalhamentoX.grid(row=0, column=1, padx=5, pady=5)
+            labelCisalhamentoY = tk.Label(self.options_menu_frame, text="Fator de Cisalhamento em Y:")
+            labelCisalhamentoY.grid(row=1, column=0, padx=5, pady=5)
+            entryCisalhamentoY = tk.Entry(self.options_menu_frame)
+            entryCisalhamentoY.grid(row=1, column=1, padx=5, pady=5)
+
+        elif optionSelected == "Reflexão":
+            labelReflexao = tk.Label(self.options_menu_frame, text="Escolha a Reflexão:")
+            labelReflexao.grid(row=0, column=0, padx=5, pady=5)
+            selectionReflexao = ttk.Combobox(self.options_menu_frame, values=["Vertical", "Horizontal"])
+            selectionReflexao.grid(row=0, column=1, padx=5, pady=5)
+
+    def updateOptions(self, event):
+        optionSelected = self.selection.get()
+        for widget in self.options_menu_frame.winfo_children():
+            widget.destroy()
+        self.optionsMenu(optionSelected)
+
+    def updateObject(self):
+
+        self.windowCreate.destroy()
+
+def main():          
+    root = tk.Tk()
+    app = windowMaster(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
