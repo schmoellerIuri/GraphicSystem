@@ -78,10 +78,13 @@ class windowMaster:
         self.ax.axhline(0, color='black', lw=2)  # Linha horizontal no eixo x
         self.ax.axvline(0, color='black', lw=2)  # Linha vertical no eixo y
 
+        self.ax.set_xlim(0, 10)
+        self.ax.set_ylim(0, 10)
+
         self.canvas.draw()
 
-    def update_canva(self):
-        obj = ListObjects[-1]
+    def update_canva(self, index = -1):
+        obj = ListObjects[index]
         polygon = obj.polygon
         patch = self.ax.add_patch(polygon)
 
@@ -111,15 +114,19 @@ class windowMaster:
             self.createMode = False
             windowCreateObject(self)
         elif event.key == 'escape' and self.createMode:
-            for p in self.listOfNewPolygonPoints:
-                p.remove()
-            self.listOfNewPolygonPoints = []
-            self.createMode = False
-            self.canvas.draw()
+            self.cancel_creation()
 
-            self.buttonCreateObject.config(state=tk.NORMAL)
+    
+    def cancel_creation(self):
+        for p in self.listOfNewPolygonPoints:
+            p.remove()
+        self.listOfNewPolygonPoints = []
+        self.createMode = False
+        self.canvas.draw()
 
-            self.buttonOpenFile.config(state=tk.NORMAL)
+        self.buttonCreateObject.config(state=tk.NORMAL)
+
+        self.buttonOpenFile.config(state=tk.NORMAL)
 
     def on_mouse_release(self, event):
         self.mouse_is_pressed = False
@@ -192,13 +199,17 @@ class windowMaster:
         # Cria o menu de contexto
         self.menu = tk.Menu(self.master, tearoff=0)
         self.menu.add_command(label="Deletar", command=lambda: self.delete(item_index))
-        self.menu.add_command(label="Aplicar Transformação", command=lambda: windowTransformationsObject(self))
+        self.menu.add_command(label="Aplicar Transformação", command=lambda: self.open_window_transformation(item_index))
 
         # Exibe o menu de contexto
         self.menu.post(x_root, y_root)
 
         self.master.bind("<Button-1>", self.close_menu_on_mouse_button)
     
+    def open_window_transformation(self, index):
+        object = ListObjects[index]
+
+        windowTransformationsObject(self, index)
     def close_menu_on_mouse_button(self, event):
         # Verifica se o menu de contexto existe antes de tentar destruí-lo
         if hasattr(self, 'menu') and self.menu:
@@ -213,23 +224,33 @@ class windowCreateObject:
         self.windowCreate = tk.Toplevel()
         self.windowCreate.title('Criação de objetos')
 
+        self.windowCreate.protocol("WM_DELETE_WINDOW", self.on_close)
+
         self.color = 'cyan'    
 
         self.nameLabel = tk.Label(self.windowCreate,text="Nome")
-        self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
+        self.nameLabel.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
         self.entryName = tk.Entry(self.windowCreate)
-        self.entryName.grid(row=0, column=1, padx=10, pady=10)
+        self.entryName.grid(row=0, column=2, padx=10, pady=10, columnspan=2)
 
         self.buttonColor = tk.Button(self.windowCreate, text="Escolher Cor", command=self.getColor)
-        self.buttonColor.grid(row=1, column=0, padx=10, pady=10)
+        self.buttonColor.grid(row=1, column=0, padx=10, pady=10, columnspan=2)
+
+        self.colorCanvas = tk.Canvas(self.windowCreate, width=20, height=20, bg=self.color, highlightthickness=0)
+        self.colorCanvas.grid(row=1, column=2, padx=10, pady=10)
 
         self.buttonCreate = tk.Button(self.windowCreate, text="Criar", command=self.createObject)
         self.buttonCreate.grid(row=1, column=3, padx=10, pady=10)
+    
+    def on_close(self):
+        self.masterWindowInstance.cancel_creation()
+        self.windowCreate.destroy()
 
     def getColor(self):
         color = colorchooser.askcolor(parent=self.windowCreate ,title="Escolha uma cor")[1]
         if color:
             self.color = color
+        self.colorCanvas.config(bg = self.color)
 
     def createObject(self):
         name = self.entryName.get()
@@ -261,8 +282,10 @@ class windowCreateObject:
 
 # Janela de transformações de objetos
 class windowTransformationsObject:
-    def __init__(self, masterWindowInstance):
+    def __init__(self, masterWindowInstance, index):
         self.options = ["Translação", "Escala", "Rotação", "Cisalhamento", "Reflexão"]
+
+        self.index = index
 
         self.masterWindowInstance = masterWindowInstance
         self.windowCreate = tk.Toplevel()
@@ -290,53 +313,84 @@ class windowTransformationsObject:
         if optionSelected == "Translação":
             labelX = tk.Label(self.options_menu_frame, text="Deslocamento X:")
             labelX.grid(row=0, column=0, padx=5, pady=5)
-            entryX = tk.Entry(self.options_menu_frame)
-            entryX.grid(row=0, column=1, padx=5, pady=5)
+            self.entryX = tk.Entry(self.options_menu_frame)
+            self.entryX.grid(row=0, column=1, padx=5, pady=5)
             labelY = tk.Label(self.options_menu_frame, text="Deslocamento Y:")
             labelY.grid(row=1, column=0, padx=5, pady=5)
-            entryY = tk.Entry(self.options_menu_frame)
-            entryY.grid(row=1, column=1, padx=5, pady=5)
+            self.entryY = tk.Entry(self.options_menu_frame)
+            self.entryY.grid(row=1, column=1, padx=5, pady=5)
 
         elif optionSelected == "Escala":
             labelEscalaX = tk.Label(self.options_menu_frame, text="Fator de Escala em X:")
             labelEscalaX.grid(row=0, column=0, padx=5, pady=5)
-            entryEscalaX = tk.Entry(self.options_menu_frame)
-            entryEscalaX.grid(row=0, column=1, padx=5, pady=5)
+            self.entryEscalaX = tk.Entry(self.options_menu_frame)
+            self.entryEscalaX.grid(row=0, column=1, padx=5, pady=5)
             labelEscalaY = tk.Label(self.options_menu_frame, text="Fator de Escala em Y:")
             labelEscalaY.grid(row=1, column=0, padx=5, pady=5)
-            entryEscalaY = tk.Entry(self.options_menu_frame)
-            entryEscalaY.grid(row=1, column=1, padx=5, pady=5)
+            self.entryEscalaY = tk.Entry(self.options_menu_frame)
+            self.entryEscalaY.grid(row=1, column=1, padx=5, pady=5)
 
         elif optionSelected == "Rotação":
             label_angulo = tk.Label(self.options_menu_frame, text="Ângulo de Rotação (°):")
             label_angulo.grid(row=0, column=0, padx=5, pady=5)
-            entry_angulo = tk.Entry(self.options_menu_frame)
-            entry_angulo.grid(row=0, column=1, padx=5, pady=5)
+            self.entryAngulo = tk.Entry(self.options_menu_frame)
+            self.entryAngulo.grid(row=0, column=1, padx=5, pady=5)
 
         elif optionSelected == "Cisalhamento":
             labelCisalhamentoX = tk.Label(self.options_menu_frame, text="Fator de Cissalhamento em X:")
             labelCisalhamentoX.grid(row=0, column=0, padx=5, pady=5)
-            entryCisalhamentoX = tk.Entry(self.options_menu_frame)
-            entryCisalhamentoX.grid(row=0, column=1, padx=5, pady=5)
+            self.entryCisalhamentoX = tk.Entry(self.options_menu_frame)
+            self.entryCisalhamentoX.grid(row=0, column=1, padx=5, pady=5)
             labelCisalhamentoY = tk.Label(self.options_menu_frame, text="Fator de Cisalhamento em Y:")
             labelCisalhamentoY.grid(row=1, column=0, padx=5, pady=5)
-            entryCisalhamentoY = tk.Entry(self.options_menu_frame)
-            entryCisalhamentoY.grid(row=1, column=1, padx=5, pady=5)
+            self.entryCisalhamentoY = tk.Entry(self.options_menu_frame)
+            self.entryCisalhamentoY.grid(row=1, column=1, padx=5, pady=5)
 
         elif optionSelected == "Reflexão":
             labelReflexao = tk.Label(self.options_menu_frame, text="Escolha a Reflexão:")
             labelReflexao.grid(row=0, column=0, padx=5, pady=5)
-            selectionReflexao = ttk.Combobox(self.options_menu_frame, values=["Vertical", "Horizontal"])
-            selectionReflexao.grid(row=0, column=1, padx=5, pady=5)
+            self.selectionReflexao = ttk.Combobox(self.options_menu_frame, values=["Vertical", "Horizontal"])
+            self.selectionReflexao.grid(row=0, column=1, padx=5, pady=5)
 
     def updateOptions(self, event):
-        optionSelected = self.selection.get()
+        self.optionSelected = self.selection.get()
         for widget in self.options_menu_frame.winfo_children():
             widget.destroy()
-        self.optionsMenu(optionSelected)
+        self.optionsMenu(self.optionSelected)
 
     def updateObject(self):
+        option = self.optionSelected
+        obj = ListObjects[self.index]
+        obj.Undraw()
+        self.masterWindowInstance.canvas.draw()
 
+        if option == "Translação":
+            x, y = float(self.entryX.get()), float(self.entryY.get())
+            obj.Translate(x, y)
+        elif option == "Escala":
+            x, y = float(self.entryEscalaX.get()), float(self.entryEscalaY.get())
+            obj.Scale(x, y)
+        elif option == "Rotação":
+            angulo = float(self.entryAngulo.get())
+            obj.Rotate(angulo)
+        elif option == "Cisalhamento":
+            x, y  = float(self.entryCisalhamentoX.get()), float(self.entryCisalhamentoY.get())
+            obj.Shear(x, y)
+        elif option == "Reflexão":
+            reflexao = self.selectionReflexao.get()
+            obj.Reflect(reflexao)
+        
+        obj.listScatter = []
+        scatters = []
+
+        for v in obj.listVertex:
+            scatter = self.masterWindowInstance.ax.scatter(v[0], v[1], color = 'blue')
+            scatters.append(scatter)
+            self.masterWindowInstance.canvas.draw()
+        
+        obj.listScatter = scatters
+
+        self.masterWindowInstance.update_canva(index=self.index)
         self.windowCreate.destroy()
 
 def main():          
