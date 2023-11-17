@@ -1,11 +1,10 @@
 import tkinter as tk
-from tkinter import ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import tkinter.colorchooser as colorchooser
-import Object
-
-ListObjects = []
+from CreateObjectWindow import windowCreateObject
+from TransformationsWindow import windowTransformationsObject
+from tkinter import colorchooser
+from ObjectFromFile import GetObjectFromFile
 
 # Janela Principal
 class windowMaster:
@@ -18,6 +17,7 @@ class windowMaster:
 
         self.config_canva()
 
+        self.ListObjects = []
         self.listOfNewPolygonPoints = []
         self.listOfNewPolygonVertexes = []
         self.createMode = False
@@ -84,7 +84,7 @@ class windowMaster:
         self.canvas.draw()
 
     def update_canva(self, index = -1):
-        obj = ListObjects[index]
+        obj = self.ListObjects[index]
         polygon = obj.polygon
         patch = self.ax.add_patch(polygon)
 
@@ -92,7 +92,7 @@ class windowMaster:
 
         self.canvas.draw()
 
-    def round_to_nearest_05(self, number):
+    def round_to_nearest_01(self, number):
         rounded_number = round(number * 10) / 10  # Arredonda para o valor mais próximo com uma casa decimal
         return rounded_number
 
@@ -103,7 +103,7 @@ class windowMaster:
         self.mouse_is_pressed = True
 
         if self.createMode:
-            x, y = (self.round_to_nearest_05(event.xdata), self.round_to_nearest_05(event.ydata))
+            x, y = (self.round_to_nearest_01(event.xdata), self.round_to_nearest_01(event.ydata))
             self.listOfNewPolygonVertexes.append((x, y))
             scatter = self.ax.scatter(x, y, color='blue')
             self.listOfNewPolygonPoints.append(scatter)
@@ -164,9 +164,31 @@ class windowMaster:
             self.canvas.draw()
 
     def on_openfile_click(self):
+        self.buttonCreateObject.config(state=tk.DISABLED)
+        self.buttonOpenFile.config(state=tk.DISABLED)
+
+        color = colorchooser.askcolor(parent=self.master ,title="Escolha uma cor")[1]
         file_path = tk.filedialog.askopenfilename(title="Selecione um arquivo", filetypes=[("Arquivos .obj", "*.obj")] )
+
         if file_path:
-            print("Arquivo selecionado:", file_path)
+            obj = GetObjectFromFile(file_path, color)
+            for v in obj.listVertex:
+                scatter = self.ax.scatter(v[0], v[1], color='blue')
+                obj.listScatter.append(scatter)
+                if obj == None: 
+                    tk.messagebox.showerror("Erro", "Arquivo inválido.", parent=self.master)
+                    return
+                self.canvas.draw()
+
+            self.ListObjects.append(obj)
+
+            self.update_listbox(obj.name)
+            self.update_canva()
+        else:
+            tk.messagebox.showerror("Erro", "Arquivo inválido.", parent=self.master)
+
+        self.buttonCreateObject.config(state=tk.NORMAL)
+        self.buttonOpenFile.config(state=tk.NORMAL)
 
     def on_buttoncreateobject_click(self):
         self.createMode = True
@@ -178,10 +200,10 @@ class windowMaster:
         self.displayFile.bind("<Button-3>", self.on_listbox_right_click)
 
     def delete(self, index):
-        object = ListObjects[index]
+        object = self.ListObjects[index]
         object.Undraw()
 
-        ListObjects.remove(object)
+        self.ListObjects.remove(object)
         self.displayFile.delete(index)
         self.canvas.draw()
 
@@ -207,191 +229,12 @@ class windowMaster:
         self.master.bind("<Button-1>", self.close_menu_on_mouse_button)
     
     def open_window_transformation(self, index):
-        object = ListObjects[index]
-
         windowTransformationsObject(self, index)
+
     def close_menu_on_mouse_button(self, event):
         # Verifica se o menu de contexto existe antes de tentar destruí-lo
         if hasattr(self, 'menu') and self.menu:
             self.menu.destroy()
-
-# Janela de criacao de objetos            
-class windowCreateObject:
-    def __init__(self, masterWindowInstance):
-        # Função a ser executada quando o Botão de criação de objeto é clicado
-        self.masterWindowInstance = masterWindowInstance
-
-        self.windowCreate = tk.Toplevel()
-        self.windowCreate.title('Criação de objetos')
-
-        self.windowCreate.protocol("WM_DELETE_WINDOW", self.on_close)
-
-        self.color = 'cyan'    
-
-        self.nameLabel = tk.Label(self.windowCreate,text="Nome")
-        self.nameLabel.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
-        self.entryName = tk.Entry(self.windowCreate)
-        self.entryName.grid(row=0, column=2, padx=10, pady=10, columnspan=2)
-
-        self.buttonColor = tk.Button(self.windowCreate, text="Escolher Cor", command=self.getColor)
-        self.buttonColor.grid(row=1, column=0, padx=10, pady=10, columnspan=2)
-
-        self.colorCanvas = tk.Canvas(self.windowCreate, width=20, height=20, bg=self.color, highlightthickness=0)
-        self.colorCanvas.grid(row=1, column=2, padx=10, pady=10)
-
-        self.buttonCreate = tk.Button(self.windowCreate, text="Criar", command=self.createObject)
-        self.buttonCreate.grid(row=1, column=3, padx=10, pady=10)
-    
-    def on_close(self):
-        self.masterWindowInstance.cancel_creation()
-        self.windowCreate.destroy()
-
-    def getColor(self):
-        color = colorchooser.askcolor(parent=self.windowCreate ,title="Escolha uma cor")[1]
-        if color:
-            self.color = color
-        self.colorCanvas.config(bg = self.color)
-
-    def createObject(self):
-        name = self.entryName.get()
-
-        if name == "":
-            tk.messagebox.showerror("Erro", "O nome do objeto não pode ser vazio.", parent=self.windowCreate)
-            return
-
-        if len(self.masterWindowInstance.listOfNewPolygonVertexes) <= 1:
-            tk.messagebox.showerror("Erro", "O objeto não pode ser vazio.", parent=self.windowCreate)
-            return
-        
-        new_object = Object.Object(name, self.masterWindowInstance.listOfNewPolygonVertexes, self.masterWindowInstance.listOfNewPolygonPoints, self.color)
-        ListObjects.append(new_object)
-
-        self.masterWindowInstance.update_listbox(new_object.name)
-
-        self.masterWindowInstance.listOfNewPolygonVertexes = []
-
-        self.masterWindowInstance.listOfNewPolygonPoints = []
-
-        self.masterWindowInstance.update_canva()
-
-        self.masterWindowInstance.buttonCreateObject.config(state=tk.NORMAL)
-
-        self.masterWindowInstance.buttonOpenFile.config(state=tk.NORMAL)
-
-        self.windowCreate.destroy()
-
-# Janela de transformações de objetos
-class windowTransformationsObject:
-    def __init__(self, masterWindowInstance, index):
-        self.options = ["Translação", "Escala", "Rotação", "Cisalhamento", "Reflexão"]
-
-        self.index = index
-
-        self.masterWindowInstance = masterWindowInstance
-        self.windowCreate = tk.Toplevel()
-        self.windowCreate.title('Menu de Transformação')  
-
-        self.nameLabel = tk.Label(self.windowCreate, text="Transformação")
-        self.nameLabel.grid(row=0, column=0, padx=10, pady=10)
-
-        self.selection = ttk.Combobox(self.windowCreate, values=self.options)
-        self.selection.grid(row=0, column=1, padx=10, pady=10)
-        self.selection.bind("<<ComboboxSelected>>", self.updateOptions)
-
-        self.options_menu_frame = tk.Frame(self.windowCreate)
-        self.options_menu_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
-
-        self.updateOptions(None)
-
-        self.buttonCancel = tk.Button(self.windowCreate, text="Cancelar", command=self.windowCreate.destroy)
-        self.buttonCancel.grid(row=2, column=0, padx=10, pady=10)
-
-        self.buttonApply = tk.Button(self.windowCreate, text="Aplicar", command=self.updateObject)
-        self.buttonApply.grid(row=2, column=3, padx=10, pady=10)
-
-    def optionsMenu(self, optionSelected):
-        if optionSelected == "Translação":
-            labelX = tk.Label(self.options_menu_frame, text="Deslocamento X:")
-            labelX.grid(row=0, column=0, padx=5, pady=5)
-            self.entryX = tk.Entry(self.options_menu_frame)
-            self.entryX.grid(row=0, column=1, padx=5, pady=5)
-            labelY = tk.Label(self.options_menu_frame, text="Deslocamento Y:")
-            labelY.grid(row=1, column=0, padx=5, pady=5)
-            self.entryY = tk.Entry(self.options_menu_frame)
-            self.entryY.grid(row=1, column=1, padx=5, pady=5)
-
-        elif optionSelected == "Escala":
-            labelEscalaX = tk.Label(self.options_menu_frame, text="Fator de Escala em X:")
-            labelEscalaX.grid(row=0, column=0, padx=5, pady=5)
-            self.entryEscalaX = tk.Entry(self.options_menu_frame)
-            self.entryEscalaX.grid(row=0, column=1, padx=5, pady=5)
-            labelEscalaY = tk.Label(self.options_menu_frame, text="Fator de Escala em Y:")
-            labelEscalaY.grid(row=1, column=0, padx=5, pady=5)
-            self.entryEscalaY = tk.Entry(self.options_menu_frame)
-            self.entryEscalaY.grid(row=1, column=1, padx=5, pady=5)
-
-        elif optionSelected == "Rotação":
-            label_angulo = tk.Label(self.options_menu_frame, text="Ângulo de Rotação (°):")
-            label_angulo.grid(row=0, column=0, padx=5, pady=5)
-            self.entryAngulo = tk.Entry(self.options_menu_frame)
-            self.entryAngulo.grid(row=0, column=1, padx=5, pady=5)
-
-        elif optionSelected == "Cisalhamento":
-            labelCisalhamentoX = tk.Label(self.options_menu_frame, text="Fator de Cissalhamento em X:")
-            labelCisalhamentoX.grid(row=0, column=0, padx=5, pady=5)
-            self.entryCisalhamentoX = tk.Entry(self.options_menu_frame)
-            self.entryCisalhamentoX.grid(row=0, column=1, padx=5, pady=5)
-            labelCisalhamentoY = tk.Label(self.options_menu_frame, text="Fator de Cisalhamento em Y:")
-            labelCisalhamentoY.grid(row=1, column=0, padx=5, pady=5)
-            self.entryCisalhamentoY = tk.Entry(self.options_menu_frame)
-            self.entryCisalhamentoY.grid(row=1, column=1, padx=5, pady=5)
-
-        elif optionSelected == "Reflexão":
-            labelReflexao = tk.Label(self.options_menu_frame, text="Escolha a Reflexão:")
-            labelReflexao.grid(row=0, column=0, padx=5, pady=5)
-            self.selectionReflexao = ttk.Combobox(self.options_menu_frame, values=["Vertical", "Horizontal"])
-            self.selectionReflexao.grid(row=0, column=1, padx=5, pady=5)
-
-    def updateOptions(self, event):
-        self.optionSelected = self.selection.get()
-        for widget in self.options_menu_frame.winfo_children():
-            widget.destroy()
-        self.optionsMenu(self.optionSelected)
-
-    def updateObject(self):
-        option = self.optionSelected
-        obj = ListObjects[self.index]
-        obj.Undraw()
-        self.masterWindowInstance.canvas.draw()
-
-        if option == "Translação":
-            x, y = float(self.entryX.get()), float(self.entryY.get())
-            obj.Translate(x, y)
-        elif option == "Escala":
-            x, y = float(self.entryEscalaX.get()), float(self.entryEscalaY.get())
-            obj.Scale(x, y)
-        elif option == "Rotação":
-            angulo = float(self.entryAngulo.get())
-            obj.Rotate(angulo)
-        elif option == "Cisalhamento":
-            x, y  = float(self.entryCisalhamentoX.get()), float(self.entryCisalhamentoY.get())
-            obj.Shear(x, y)
-        elif option == "Reflexão":
-            reflexao = self.selectionReflexao.get()
-            obj.Reflect(reflexao)
-        
-        obj.listScatter = []
-        scatters = []
-
-        for v in obj.listVertex:
-            scatter = self.masterWindowInstance.ax.scatter(v[0], v[1], color = 'blue')
-            scatters.append(scatter)
-            self.masterWindowInstance.canvas.draw()
-        
-        obj.listScatter = scatters
-
-        self.masterWindowInstance.update_canva(index=self.index)
-        self.windowCreate.destroy()
 
 def main():          
     root = tk.Tk()
