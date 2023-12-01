@@ -19,6 +19,24 @@ class Object:
     def SetPatch(self, patch):
         self.patch = patch
 
+    def GetMatrizTranslacao(self, x, y):
+        return np.array([[1, 0, x], [0, 1, y], [0, 0, 1]])
+
+    def GetMatrizEscala(self, sx, sy):
+        return np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]])
+
+    def GetMatrizRotacao(self, theta):
+        return np.array([[math.cos(math.radians(theta)), -math.sin(math.radians(theta)), 0], [math.sin(math.radians(theta)), math.cos(math.radians(theta)), 0], [0, 0, 1]])
+
+    def GetMatrizCisalhamento(self, shx, shy):
+        return np.array([[1, shx, 0], [shy, 1, 0], [0, 0, 1]])
+
+    def GetMatrizReflexao(self, sense):
+        if sense == "Horizontal":
+            return np.array([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        elif sense == "Vertical":
+            return np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]])
+
     def FindCentroid(self):
         coordsX = [vertex[0] for vertex in self.listVertex]
         coordsY = [vertex[1] for vertex in self.listVertex]
@@ -33,38 +51,49 @@ class Object:
         self.polygon = Polygon(self.listVertex, closed=True, edgecolor='blue', facecolor=self.color, alpha=0.5)
 
     def Translate(self, x, y):
-        matrixTranslate = np.array([[1, 0, x], [0, 1, y], [0, 0, 1]])
+        matrixTranslate = self.GetMatrizTranslacao(x, y)
         self.ApplyTransformationMatrix(matrixTranslate)
 
     def Scale(self, sx, sy):
-        matrixScale = np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]])
-        self.Translate(-self.centroidX, -self.centroidY)
-        self.ApplyTransformationMatrix(matrixScale)
-        self.Translate(self.centroidX, self.centroidY)
+        matrixes = []
+        matrixes.append(self.GetMatrizTranslacao(-self.centroidX, -self.centroidY))
+        matrixes.append(self.GetMatrizEscala(sx, sy))
+        matrixes.append(self.GetMatrizTranslacao(self.centroidX, self.centroidY))
+        matrixConcatenated = self.GetConcatenatedMatrix(matrixes)
+        self.ApplyTransformationMatrix(matrixConcatenated)
         self.FindCentroid()
 
     def Rotate(self, theta):
-        matrixRotation = np.array([[math.cos(math.radians(theta)), -math.sin(math.radians(theta)), 0],
-                                   [math.sin(math.radians(theta)), math.cos(math.radians(theta)), 0],
-                                   [0, 0, 1]])
-        self.Translate(-self.centroidX, -self.centroidY)
-        self.ApplyTransformationMatrix(matrixRotation)
-        self.Translate(self.centroidX, self.centroidY)
+        matrixes = []
+        matrixes.append(self.GetMatrizTranslacao(-self.centroidX, -self.centroidY))
+        matrixes.append(self.GetMatrizRotacao(theta))
+        matrixes.append(self.GetMatrizTranslacao(self.centroidX, self.centroidY))
+        matrixConcatenated = self.GetConcatenatedMatrix(matrixes)
+        self.ApplyTransformationMatrix(matrixConcatenated)
         self.FindCentroid()
 
     def Shear(self, shx, shy):
-        matrixShear = np.array([[1, shx, 0], [shy, 1, 0], [0, 0, 1]])
-        self.Translate(-self.centroidX, -self.centroidY)
-        self.ApplyTransformationMatrix(matrixShear)
-        self.Translate(self.centroidX, self.centroidY)
+        matrixes = []
+        matrixes.append(self.GetMatrizTranslacao(-self.centroidX, -self.centroidY))
+        matrixes.append(self.GetMatrizCisalhamento(shx, shy))
+        matrixes.append(self.GetMatrizTranslacao(self.centroidX, self.centroidY))
+        matrixConcatenated = self.GetConcatenatedMatrix(matrixes)
+        self.ApplyTransformationMatrix(matrixConcatenated)
         self.FindCentroid()
 
     def Reflect(self, sense):
-        if sense == "Horizontal":
-            matrixReflection = np.array([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        elif sense == "Vertical":
-            matrixReflection = np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]])
-        self.Translate(-self.centroidX, -self.centroidY)
-        self.ApplyTransformationMatrix(matrixReflection)
-        self.Translate(self.centroidX, self.centroidY)
+        matrixes = []
+        matrixes.append(self.GetMatrizTranslacao(-self.centroidX, -self.centroidY))
+        matrixes.append(self.GetMatrizReflexao(sense))
+        matrixes.append(self.GetMatrizTranslacao(self.centroidX, self.centroidY))
+        matrixConcatenated = self.GetConcatenatedMatrix(matrixes)
+        self.ApplyTransformationMatrix(matrixConcatenated)
         self.FindCentroid()
+
+    def GetConcatenatedMatrix(self, matrixes):
+        concatenatedMatrix = np.identity(3)
+        matrixes.reverse()
+
+        for matrix in matrixes:
+            concatenatedMatrix = np.dot(concatenatedMatrix, matrix)
+        return concatenatedMatrix
